@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>API Tester — Auth</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ffcc;
+    --accent2: #ff6b6b;
+    --accent3: #6b8aff;
+    --text: #e8e8f0;
+    --muted: #555570;
+    --success: #00ffcc;
+    --error: #ff6b6b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,204,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,204,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .base-url-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    flex: 1;
+    max-width: 420px;
+    margin-left: 32px;
+  }
+
+  .base-url-bar label {
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .base-url-bar input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--accent3);
+    font-family: var(--mono);
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Token status */
+  .token-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .token-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .token-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Sidebar nav */
+  .sidebar {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar-section {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 16px 12px 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    color: var(--muted);
+    border: 1px solid transparent;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--surface); }
+
+  .nav-item.active {
+    color: var(--accent);
+    background: rgba(0,255,204,0.06);
+    border-color: rgba(0,255,204,0.15);
+  }
+
+  .method-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+  }
+
+  .method-post { background: rgba(107,138,255,0.2); color: var(--accent3); }
+  .method-get  { background: rgba(0,255,204,0.15); color: var(--accent); }
+
+  /* Main panel */
+  .panel {
+    display: none;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .panel.active { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .panel-title {
+    font-family: var(--sans);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .endpoint-path {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+  }
+
+  /* Form fields */
+  .fields {
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .fields.two-col { grid-template-columns: 1fr 1fr; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field.full { grid-column: 1 / -1; }
+
+  .field label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .field input, .field textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+    resize: vertical;
+  }
+
+  .field input:focus, .field textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,255,204,0.08);
+  }
+
+  .field input::placeholder, .field textarea::placeholder { color: var(--muted); }
+
+  /* Skills tags input */
+  .tags-wrapper {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    transition: border-color 0.15s;
+    cursor: text;
+    min-height: 42px;
+  }
+
+  .tags-wrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,255,204,0.08);
+  }
+
+  .tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0,255,204,0.1);
+    border: 1px solid rgba(0,255,204,0.25);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 12px;
+  }
+
+  .tag button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.6;
+    transition: opacity 0.1s;
+  }
+
+  .tag button:hover { opacity: 1; }
+
+  .tags-input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .tags-hint { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* Send button */
+  .send-btn {
+    margin: 0 20px 20px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .send-btn:hover { background: #00e6b8; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,255,204,0.25); }
+  .send-btn:active { transform: translateY(0); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Response area */
+  .response-card { border-color: var(--border); }
+
+  .response-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .status-2xx { background: rgba(0,255,204,0.15); color: var(--success); }
+  .status-4xx { background: rgba(255,107,107,0.15); color: var(--error); }
+  .status-5xx { background: rgba(255,107,107,0.2); color: var(--error); }
+
+  .response-time { font-size: 11px; color: var(--muted); }
+
+  .response-body {
+    padding: 20px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #a0ffdd;
+    overflow-x: auto;
+    white-space: pre;
+    min-height: 60px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .response-body.empty { color: var(--muted); font-style: italic; white-space: normal; }
+
+  /* Token store display */
+  .token-store {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .token-row { display: flex; flex-direction: column; gap: 4px; }
+  .token-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .token-value {
+    font-size: 11px;
+    color: var(--accent3);
+    word-break: break-all;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .token-value:hover { color: var(--accent); }
+  .token-value.empty { color: var(--muted); font-style: italic; }
+
+  .clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: flex-start;
+  }
+
+  .clear-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Spinner */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+
+  .send-btn.loading .spinner { display: block; }
+  .send-btn.loading .btn-label { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Copy toast */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent);
+    color: var(--bg);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all 0.2s;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div style="display:flex;align-items:center;gap:20px;flex:1">
+      <div class="logo">api<span>.</span>tester</div>
+      <div class="base-url-bar">
+        <label>Base URL</label>
+        <input type="text" id="baseUrl" value="http://localhost:8000/api/auth" />
+      </div>
+    </div>
+    <div class="token-status">
+      <div class="token-dot" id="tokenDot"></div>
+      <span id="tokenLabel">No token</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-section">Auth</div>
+      <div class="nav-item active" onclick="showPanel('register')">
+        <span class="method-badge method-post">POST</span> Register
+      </div>
+      <div class="nav-item" onclick="showPanel('login')">
+        <span class="method-badge method-post">POST</span> Login
+      </div>
+      <div class="nav-item" onclick="showPanel('logout')">
+        <span class="method-badge method-post">POST</span> Logout
+      </div>
+      <div class="sidebar-section">User</div>
+      <div class="nav-item" onclick="showPanel('me')">
+        <span class="method-badge method-get">GET</span> Me
+      </div>
+      <div class="nav-item" onclick="showPanel('refresh')">
+        <span class="method-badge method-post">POST</span> Refresh Token
+      </div>
+      <div class="sidebar-section">Session</div>
+      <div class="nav-item" onclick="showPanel('tokens')">
+        <span class="method-badge method-get">ℹ</span> Stored Tokens
+      </div>
+    </nav>
+
+    <!-- Panels -->
+    <div>
+
+      <!-- Register -->
+      <div class="panel active" id="panel-register">
+        <div class="panel-header">
+          <div class="panel-title">Register</div>
+          <div class="endpoint-path">POST /register/</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span>Request Body</span></div>
+          <div class="fields two-col">
+            <div class="field">
+              <label>Username *</label>
+              <input type="text" id="reg-username" placeholder="johndoe" />
+            </div>
+            <div class="field">
+              <label>Email *</label>
+              <input type="email" id="reg-email" placeholder="john@example.com" />
+            </div>
+            <div class="field">
+              <label>Password *</label>
+              <input type="password" id="reg-password" placeholder="min 8 chars" />
+            </div>
+            <div class="field">
+              <label>Full Name</label>
+              <input type="text" id="reg-fullname" placeholder="John Doe" />
+            </div>
+            <div class="field">
+              <label>Location</label>
+              <input type="text" id="reg-location" placeholder="New York, USA" />
+            </div>
+            <div class="field full">
+              <label>Bio</label>
+              <textarea id="reg-bio" rows="2" placeholder="A short bio..."></textarea>
+            </div>
+            <div class="field full">
+              <label>Skills</label>
+              <div class="tags-wrapper" id="skills-wrapper" onclick="document.getElementById('skill-input').focus()">
+                <input type="text" id="skill-input" class="tags-input" placeholder="Type a skill and press Enter..." />
+              </div>
+              <div class="tags-hint">Press Enter or comma to add</div>
+            </div>
+          </div>
+          <button class="send-btn" id="btn-register" onclick="sendRegister()">
+            <span class="btn-label">Send Request</span>
+            <div class="spinner"></div>
+          </button>
+        </div>
+
+        <div class="card response-card">
+          <div class="card-header">
+            <span>Response</span>
+            <div class="response-meta" id="meta-register"></div>
+          </div>
+          <div class="response-body empty" id="res-register">Response will appear here…</div>
+        </div>
+      </div>
+
+      <!-- Login -->
+      <div class="panel" id="panel-login">
+        <div class="panel-header">
+          <div class="panel-title">Login</div>
+          <div class="endpoint-path">POST /login/</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span>Request Body</span></div>
+          <div class="fields two-col">
+            <div class="field">
+              <label>Username *</label>
+              <input type="text" id="login-username" placeholder="johndoe" />
+            </div>
+            <div class="field">
+              <label>Password *</label>
+              <input type="password" id="login-password" placeholder="••••••••" />
+            </div>
+          </div>
+          <button class="send-btn" id="btn-login" onclick="sendLogin()">
+            <span class="btn-label">Send Request</span>
+            <div class="spinner"></div>
+          </button>
+        </div>
+
+        <div class="card response-card">
+          <div class="card-header">
+            <span>Response</span>
+            <div class="response-meta" id="meta-login"></div>
+          </div>
+          <div class="response-body empty" id="res-login">Response will appear here…</div>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <div class="panel" id="panel-logout">
+        <div class="panel-header">
+          <div class="panel-title">Logout</div>
+          <div class="endpoint-path">POST /logout/</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span>Request Body</span></div>
+          <div class="fields">
+            <div class="field">
+              <label>Refresh Token (auto-filled from session)</label>
+              <textarea id="logout-refresh" rows="3" placeholder="Paste refresh token or login first…"></textarea>
+            </div>
+          </div>
+          <button class="send-btn" id="btn-logout" onclick="sendLogout()">
+            <span class="btn-label">Send Request</span>
+            <div class="spinner"></div>
+          </button>
+        </div>
+
+        <div class="card response-card">
+          <div class="card-header">
+            <span>Response</span>
+            <div class="response-meta" id="meta-logout"></div>
+          </div>
+          <div class="response-body empty" id="res-logout">Response will appear here…</div>
+        </div>
+      </div>
+
+      <!-- Me -->
+      <div class="panel" id="panel-me">
+        <div class="panel-header">
+          <div class="panel-title">Me</div>
+          <div class="endpoint-path">GET /me/</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span>Headers</span></div>
+          <div class="fields">
+            <div class="field">
+              <label>Authorization (auto-filled from session)</label>
+              <input type="text" id="me-token" placeholder="Bearer &lt;token&gt; — login first" readonly
+                style="color:var(--accent3);cursor:default" />
+            </div>
+          </div>
+          <button class="send-btn" id="btn-me" onclick="sendMe()">
+            <span class="btn-label">Send Request</span>
+            <div class="spinner"></div>
+          </button>
+        </div>
+
+        <div class="card response-card">
+          <div class="card-header">
+            <span>Response</span>
+            <div class="response-meta" id="meta-me"></div>
+          </div>
+          <div class="response-body empty" id="res-me">Response will appear here…</div>
+        </div>
+      </div>
+
+      <!-- Refresh Token -->
+      <div class="panel" id="panel-refresh">
+        <div class="panel-header">
+          <div class="panel-title">Refresh Token</div>
+          <div class="endpoint-path">POST /token/refresh/</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span>Request Body</span></div>
+          <div class="fields">
+            <div class="field">
+              <label>Refresh Token (auto-filled from session)</label>
+              <textarea id="refresh-token" rows="3" placeholder="Paste refresh token or login first…"></textarea>
+            </div>
+          </div>
+          <button class="send-btn" id="btn-refresh" onclick="sendRefresh()">
+            <span class="btn-label">Send Request</span>
+            <div class="spinner"></div>
+          </button>
+        </div>
+
+        <div class="card response-card">
+          <div class="card-header">
+            <span>Response</span>
+            <div class="response-meta" id="meta-refresh"></div>
+          </div>
+          <div class="response-body empty" id="res-refresh">Response will appear here…</div>
+        </div>
+      </div>
+
+      <!-- Tokens -->
+      <div class="panel" id="panel-tokens">
+        <div class="panel-header">
+          <div class="panel-title">Stored Tokens</div>
+          <div class="endpoint-path">Session Storage</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span>Current Session</span></div>
+          <div class="token-store">
+            <div class="token-row">
+              <div class="token-label">Access Token</div>
+              <div class="token-value empty" id="display-access" onclick="copyToken('access')">— none —</div>
+            </div>
+            <div class="token-row">
+              <div class="token-label">Refresh Token</div>
+              <div class="token-value empty" id="display-refresh" onclick="copyToken('refresh')">— none —</div>
+            </div>
+            <button class="clear-btn" onclick="clearTokens()">Clear Session</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end panels -->
+  </div><!-- end layout -->
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── State ───────────────────────────────────────────
+  let accessToken  = sessionStorage.getItem('access_token')  || '';
+  let refreshToken = sessionStorage.getItem('refresh_token') || '';
+  const skills = [];
+
+  // ─── Init ─────────────────────────────────────────────
+  updateTokenUI();
+  prefillTokenFields();
+
+  // ─── Navigation ───────────────────────────────────────
+  function showPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+    if (name === 'me')      document.getElementById('me-token').value = accessToken ? 'Bearer ' + accessToken : '';
+    if (name === 'logout')  document.getElementById('logout-refresh').value = refreshToken;
+    if (name === 'refresh') document.getElementById('refresh-token').value = refreshToken;
+  }
+
+  // ─── Skills tag input ─────────────────────────────────
+  document.getElementById('skill-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().replace(/,$/, '');
+      if (val && !skills.includes(val)) {
+        skills.push(val);
+        renderTag(val);
+      }
+      e.target.value = '';
+    } else if (e.key === 'Backspace' && !e.target.value && skills.length) {
+      removeTag(skills[skills.length - 1]);
+    }
+  });
+
+  function renderTag(name) {
+    const wrapper = document.getElementById('skills-wrapper');
+    const input   = document.getElementById('skill-input');
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.dataset.name = name;
+    tag.innerHTML = `${name}<button onclick="removeTag('${name}')" type="button">×</button>`;
+    wrapper.insertBefore(tag, input);
+  }
+
+  function removeTag(name) {
+    const idx = skills.indexOf(name);
+    if (idx > -1) skills.splice(idx, 1);
+    const el = document.querySelector(`.tag[data-name="${name}"]`);
+    if (el) el.remove();
+  }
+
+  // ─── API helpers ──────────────────────────────────────
+  function base() { return document.getElementById('baseUrl').value.replace(/\/$/, ''); }
+
+  async function call({ method, path, body, auth, btnId, resId, metaId }) {
+    const btn = document.getElementById(btnId);
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth && accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+
+    const t0 = performance.now();
+    let status, data;
+
+    try {
+      const res = await fetch(base() + path, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      status = res.status;
+      data = await res.json().catch(() => ({}));
+    } catch (err) {
+      data = { error: 'Network error — is your server running?', detail: err.message };
+      status = 0;
+    }
+
+    const elapsed = Math.round(performance.now() - t0);
+    renderResponse({ status, data, elapsed, resId, metaId });
+
+    // Auto-store tokens
+    if (data.tokens) {
+      accessToken  = data.tokens.access  || accessToken;
+      refreshToken = data.tokens.refresh || refreshToken;
+      sessionStorage.setItem('access_token',  accessToken);
+      sessionStorage.setItem('refresh_token', refreshToken);
+      updateTokenUI();
+      prefillTokenFields();
+    }
+    if (data.access) {
+      accessToken = data.access;
+      sessionStorage.setItem('access_token', accessToken);
+      updateTokenUI();
+      prefillTokenFields();
+    }
+
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+
+  function renderResponse({ status, data, elapsed, resId, metaId }) {
+    const resEl  = document.getElementById(resId);
+    const metaEl = document.getElementById(metaId);
+
+    resEl.classList.remove('empty');
+    resEl.textContent = JSON.stringify(data, null, 2);
+
+    const cls = status >= 500 ? 'status-5xx' : status >= 400 ? 'status-4xx' : 'status-2xx';
+    metaEl.innerHTML = `
+      <span class="status-badge ${cls}">${status || 'ERR'}</span>
+      <span class="response-time">${elapsed}ms</span>`;
+  }
+
+  // ─── Endpoints ────────────────────────────────────────
+  function sendRegister() {
+    const body = { username: v('reg-username'), email: v('reg-email'), password: v('reg-password') };
+    const fn = v('reg-fullname'); if (fn) body.full_name = fn;
+    const bio = v('reg-bio');     if (bio) body.bio = bio;
+    const loc = v('reg-location'); if (loc) body.location = loc;
+    if (skills.length) body.skills = [...skills];
+    call({ method:'POST', path:'/register/', body, auth:false, btnId:'btn-register', resId:'res-register', metaId:'meta-register' });
+  }
+
+  function sendLogin() {
+    call({ method:'POST', path:'/login/', body:{ username:v('login-username'), password:v('login-password') },
+      auth:false, btnId:'btn-login', resId:'res-login', metaId:'meta-login' });
+  }
+
+  function sendLogout() {
+    call({ method:'POST', path:'/logout/', body:{ refresh: document.getElementById('logout-refresh').value },
+      auth:true, btnId:'btn-logout', resId:'res-logout', metaId:'meta-logout' });
+  }
+
+  function sendMe() {
+    call({ method:'GET', path:'/me/', auth:true, btnId:'btn-me', resId:'res-me', metaId:'meta-me' });
+  }
+
+  function sendRefresh() {
+    call({ method:'POST', path:'/token/refresh/', body:{ refresh: document.getElementById('refresh-token').value },
+      auth:false, btnId:'btn-refresh', resId:'res-refresh', metaId:'meta-refresh' });
+  }
+
+  // ─── Token UI ─────────────────────────────────────────
+  function updateTokenUI() {
+    const dot   = document.getElementById('tokenDot');
+    const label = document.getElementById('tokenLabel');
+    const acc   = document.getElementById('display-access');
+    const ref   = document.getElementById('display-refresh');
+
+    if (accessToken) {
+      dot.classList.add('active');
+      label.textContent = 'Token active';
+    } else {
+      dot.classList.remove('active');
+      label.textContent = 'No token';
+    }
+
+    if (acc) {
+      acc.textContent = accessToken  || '— none —';
+      acc.classList.toggle('empty', !accessToken);
+    }
+    if (ref) {
+      ref.textContent = refreshToken || '— none —';
+      ref.classList.toggle('empty', !refreshToken);
+    }
+  }
+
+  function prefillTokenFields() {
+    const meEl = document.getElementById('me-token');
+    if (meEl) meEl.value = accessToken ? 'Bearer ' + accessToken : '';
+    const lo = document.getElementById('logout-refresh');
+    if (lo && !lo.value) lo.value = refreshToken;
+    const rf = document.getElementById('refresh-token');
+    if (rf && !rf.value) rf.value = refreshToken;
+  }
+
+  function clearTokens() {
+    accessToken = ''; refreshToken = '';
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    updateTokenUI();
+    showToast('Session cleared');
+  }
+
+  function copyToken(type) {
+    const val = type === 'access' ? accessToken : refreshToken;
+    if (!val) return;
+    navigator.clipboard.writeText(val).then(() => showToast('Copied to clipboard'));
+  }
+
+  // ─── Utils ────────────────────────────────────────────
+  function v(id) { return document.getElementById(id).value.trim(); }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+</script>
+</body>
+</html>
